@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.5
 // +build go1.5
 
-//Enumer is a tool to generate Go code that adds useful methods to Go enums (constants with a specific type).
-//It started as a fork of Rob Pike’s Stringer tool
+// Enumer is a tool to generate Go code that adds useful methods to Go enums (constants with a specific type).
+// It started as a fork of Rob Pike’s Stringer tool
 //
-//Please visit http://github.com/alvaroloes/enumer for a comprehensive documentation
+// Please visit http://github.com/alvaroloes/enumer for a comprehensive documentation
 package main
 
 import (
@@ -20,7 +21,6 @@ import (
 	"go/importer"
 	"go/token"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"io/ioutil"
 	"log"
 	"os"
@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/pascaldekloe/name"
+	"golang.org/x/tools/go/packages"
 )
 
 type arrayFlags []string
@@ -316,11 +317,17 @@ func (g *Generator) transformValueNames(values []Value, transformMethod string) 
 		sep = '_'
 	case "kebab":
 		sep = '-'
+	case "compact":
+		sep = -1
 	default:
 		return
 	}
 
 	for i := range values {
+		if sep == -1 {
+			values[i].name = strings.ToLower(values[i].name)
+			continue
+		}
 		values[i].name = strings.ToLower(name.Delimit(values[i].name, sep))
 	}
 }
@@ -658,6 +665,7 @@ func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
 }
 
 // Arguments to format are:
+//
 //	[1]: type name
 //	[2]: size of index element (8 for uint8 etc.)
 //	[3]: less than zero check (for signed types)
