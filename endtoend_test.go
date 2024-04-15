@@ -4,6 +4,7 @@
 
 // go command is not available on android
 
+//go:build !android
 // +build !android
 
 package main
@@ -11,8 +12,6 @@ package main
 import (
 	"fmt"
 	"go/build"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +25,7 @@ import (
 // binary panics if the String method for X is not correct, including for error cases.
 
 func TestEndToEnd(t *testing.T) {
-	dir, err := ioutil.TempDir("", "stringer")
+	dir, err := os.MkdirTemp("", "stringer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +74,7 @@ func TestEndToEnd(t *testing.T) {
 func stringerCompileAndRun(t *testing.T, dir, stringer, typeName, fileName, transformNameMethod string) {
 	t.Logf("run: %s %s\n", fileName, typeName)
 	source := filepath.Join(dir, fileName)
-	err := copy(source, filepath.Join("testdata", fileName))
+	err := copy(filepath.Join("testdata", fileName), source)
 	if err != nil {
 		t.Fatalf("copying file to temporary directory: %s", err)
 	}
@@ -90,22 +89,6 @@ func stringerCompileAndRun(t *testing.T, dir, stringer, typeName, fileName, tran
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-// copy copies the from file to the to file.
-func copy(to, from string) error {
-	toFd, err := os.Create(to)
-	if err != nil {
-		return err
-	}
-	defer toFd.Close()
-	fromFd, err := os.Open(from)
-	if err != nil {
-		return err
-	}
-	defer fromFd.Close()
-	_, err = io.Copy(toFd, fromFd)
-	return err
 }
 
 // run runs a single command and returns an error if it does not succeed.

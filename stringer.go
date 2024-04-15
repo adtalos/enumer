@@ -21,7 +21,7 @@ import (
 	"go/importer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -137,7 +137,7 @@ func main() {
 
 	// Write to tmpfile first
 	tmpName := fmt.Sprintf("%s_enumer_", filepath.Base(types[0]))
-	tmpFile, err := ioutil.TempFile(filepath.Dir(types[0]), tmpName)
+	tmpFile, err := os.CreateTemp(filepath.Dir(types[0]), tmpName)
 	if err != nil {
 		log.Fatalf("creating temporary file for output: %s", err)
 	}
@@ -151,6 +151,9 @@ func main() {
 
 	// Rename tmpfile to output file
 	err = os.Rename(tmpFile.Name(), outputName)
+	if _, ok := err.(*os.LinkError); ok {
+		err = move(tmpFile.Name(), outputName)
+	}
 	if err != nil {
 		log.Fatalf("moving tempfile to output file: %s", err)
 	}
@@ -265,7 +268,7 @@ type Package struct {
 // parsePackage exits if there is an error.
 func (g *Generator) parsePackage(patterns []string) {
 	cfg := &packages.Config{
-		Mode: packages.LoadSyntax,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo,
 		// TODO: Need to think about constants in test files. Maybe write type_string_test.go
 		// in a separate pass? For later.
 		Tests: false,
@@ -744,3 +747,28 @@ const stringMap = `func (i %[1]s) String() string {
 	return fmt.Sprintf("%[1]s(%%d)", i)
 }
 `
+
+// copy copies the from file to the to file.
+func copy(from, to string) error {
+	toFd, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer toFd.Close()
+	fromFd, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer fromFd.Close()
+	_, err = io.Copy(toFd, fromFd)
+	return err
+}
+
+// move moves the from file to the to file.
+func move(from, to string) error {
+	err := copy(from, to)
+	if err != nil {
+		return err
+	}
+	return os.Remove(from)
+}
